@@ -95,28 +95,93 @@ export const cli = meow(helpText, {
  */
 function normalizeGitHubUrl(url) {
     try {
+        const originalUrl = url;
         // Remove trailing slashes
         url = url.replace(/\/+$/, '');
         
         // Handle git@ URLs
         if (url.startsWith('git@github.com:')) {
+            if (cli.flags.debug) {
+                console.log(chalk.blue('Debug: URL format:'), 'SSH');
+                console.log(chalk.blue('Debug: Original URL:'), originalUrl);
+                console.log(chalk.blue('Debug: Normalized URL:'), url);
+            }
             return url;
         }
         
         // Handle full HTTPS URLs
         if (url.startsWith('https://github.com/')) {
+            if (cli.flags.debug) {
+                console.log(chalk.blue('Debug: URL format:'), 'HTTPS');
+                console.log(chalk.blue('Debug: Original URL:'), originalUrl);
+                console.log(chalk.blue('Debug: Normalized URL:'), url);
+            }
             return url;
         }
         
         // Handle short format (user/repo)
         if (url.match(/^[\w-]+\/[\w-]+$/)) {
-            return `https://github.com/${url}`;
+            const normalized = `https://github.com/${url}`;
+            if (cli.flags.debug) {
+                console.log(chalk.blue('Debug: URL format:'), 'Short');
+                console.log(chalk.blue('Debug: Original URL:'), originalUrl);
+                console.log(chalk.blue('Debug: Normalized URL:'), normalized);
+            }
+            return normalized;
         }
         
         throw new Error('Invalid GitHub repository URL format');
     } catch (error) {
         throw new Error(`Invalid GitHub URL: ${url}`);
     }
+}
+
+/**
+ * Extracts repository name from a GitHub URL
+ * @param {string} url - GitHub repository URL
+ * @returns {string} Repository name
+ */
+function extractRepoName(url) {
+    const originalUrl = url;
+    // Remove trailing slashes and .git suffix
+    url = url.replace(/\/+$/, '').replace(/\.git$/, '');
+    
+    let repoName;
+    
+    // Handle git@ URLs
+    if (url.startsWith('git@github.com:')) {
+        repoName = url.split(':')[1].split('/')[1];
+        if (cli.flags.debug) {
+            console.log(chalk.blue('Debug: Extracting from SSH URL'));
+            console.log(chalk.blue('Debug: Original URL:'), originalUrl);
+            console.log(chalk.blue('Debug: Extracted repo name:'), repoName);
+        }
+        return repoName;
+    }
+    
+    // Handle full HTTPS URLs
+    if (url.startsWith('https://github.com/')) {
+        repoName = url.split('/').slice(-1)[0];
+        if (cli.flags.debug) {
+            console.log(chalk.blue('Debug: Extracting from HTTPS URL'));
+            console.log(chalk.blue('Debug: Original URL:'), originalUrl);
+            console.log(chalk.blue('Debug: Extracted repo name:'), repoName);
+        }
+        return repoName;
+    }
+    
+    // Handle short format (user/repo)
+    if (url.match(/^[\w-]+\/[\w-]+$/)) {
+        repoName = url.split('/')[1];
+        if (cli.flags.debug) {
+            console.log(chalk.blue('Debug: Extracting from short format'));
+            console.log(chalk.blue('Debug: Original URL:'), originalUrl);
+            console.log(chalk.blue('Debug: Extracted repo name:'), repoName);
+        }
+        return repoName;
+    }
+    
+    throw new Error('Invalid GitHub repository URL format');
 }
 
 /**
@@ -151,10 +216,11 @@ export async function downloadRepository(url) {
     try {
         // Normalize the GitHub URL
         const normalizedUrl = normalizeGitHubUrl(url);
-        const repoName = url.split('/').pop().replace('.git', '');
+        const repoName = extractRepoName(url);
         
         if (cli.flags.debug) {
             console.log(chalk.blue('Debug: Normalized URL:'), normalizedUrl);
+            console.log(chalk.blue('Debug: Repository name:'), repoName);
             console.log(chalk.blue('Debug: Temp directory:'), tempDir);
         }
 
